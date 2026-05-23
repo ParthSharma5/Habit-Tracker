@@ -18,7 +18,7 @@
 // }
 
 import Button from "./Button";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
+import { format, startOfWeek, endOfWeek } from "date-fns";
 import { type Habit } from "./HabitList";
 import { isSameDay } from "date-fns";
 
