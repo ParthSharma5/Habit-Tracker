@@ -32,28 +32,23 @@ The application focuses on simplicity, clean UI, and smooth user experience acro
 # ✨ Features
 
 ## ✅ Habit Management
-
 - Create and manage daily habits
 - Organize tasks efficiently
 - Track completed activities
 
 ## 🔥 Streak Tracking
-
 - Maintain daily streaks
 - Build consistency through visual progress
 
 ## 📅 Daily Progress Monitoring
-
 - View completed habits by date
 - Keep track of performance history
 
 ## 📱 Responsive Design
-
 - Mobile-friendly interface
 - Optimized for desktop and tablet devices
 
 ## ⚡ Fast Performance
-
 - Lightweight and optimized frontend
 - Smooth and responsive user interactions
 
@@ -61,10 +56,10 @@ The application focuses on simplicity, clean UI, and smooth user experience acro
 
 # 🛠️ Tech Stack
 
-| Technology | Purpose                       |
-| ---------- | ----------------------------- |
-| HTML5      | Structure                     |
-| CSS3       | Styling & Responsive Design   |
+| Technology | Purpose |
+|------------|---------|
+| HTML5 | Structure |
+| CSS3 | Styling & Responsive Design |
 | JavaScript | Functionality & Interactivity |
 
 ---
@@ -87,11 +82,16 @@ https://github.com/ParthSharma5/Habit-Tracker
 
 ## Homepage
 
-![Homepage](/Habit-Tracker/src/assets//screenshot1.png)
+```md
+!![Dashboard](/Habit-Tracker/src/assets//screenshot1.png)
+
+```
 
 ## Habit Dashboard
 
+```md
 ![Dashboard](/Habit-Tracker/src/assets//screenshot2.png)
+```
 
 ---
 
