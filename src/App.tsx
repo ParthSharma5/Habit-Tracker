@@ -1,6 +1,7 @@
 import Header from "./components/Header";
 import HabitForm from "./components/HabitForm";
 import HabitList from "./components/HabitList";
+import DataControls from "./components/DataControls";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import {
   getElapsedMs,
@@ -33,6 +34,11 @@ export default function App() {
         completions: [],
       },
     ]);
+  }
+
+  /** Wholesale replace, used by backup import. */
+  function replaceHabits(next: Habit[]) {
+    setHabits(next);
   }
 
   function deleteHabit(id: string) {
@@ -175,6 +181,7 @@ export default function App() {
           onNextWeek={handleNextWeek}
         />
         <HabitForm addHabit={addHabit} />
+        <DataControls habits={habits} replaceHabits={replaceHabits} />
         <HabitList
           habits={habits}
           deleteHabit={deleteHabit}

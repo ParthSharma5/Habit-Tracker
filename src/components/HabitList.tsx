@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Button from "./Button";
+import HabitHistory from "./HabitHistory";
 import {
   eachDayOfInterval,
   endOfWeek,
@@ -103,6 +104,8 @@ function HabitItem({
 }: HabitItemProps) {
   const [isLogging, setIsLogging] = useState(false);
   const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   // Short sessions barely move the weekly total, so confirm the save explicitly
   // rather than leaving you wondering whether the click registered.
   const [flash, setFlash] = useState<string | null>(null);
@@ -182,12 +185,40 @@ function HabitItem({
             {isLogging ? "Close" : "Log time"}
           </Button>
           <Button
-            onClick={() => deleteHabit(habit.id)}
-            variant="ghost-destructive"
+            onClick={() => setShowHistory((curr) => !curr)}
+            variant="secondary"
             className="text-xs sm:text-sm"
+            aria-expanded={showHistory}
           >
-            Delete
+            {showHistory ? "Hide history" : "History"}
           </Button>
+          {/* Deleting destroys every record for this habit, so it takes two
+              deliberate clicks rather than one stray one. */}
+          {confirmingDelete ? (
+            <span className="flex items-center gap-1">
+              <Button
+                onClick={() => deleteHabit(habit.id)}
+                className="text-xs sm:text-sm bg-red-700 hover:bg-red-600"
+              >
+                Delete forever
+              </Button>
+              <Button
+                onClick={() => setConfirmingDelete(false)}
+                variant="secondary"
+                className="text-xs sm:text-sm"
+              >
+                Cancel
+              </Button>
+            </span>
+          ) : (
+            <Button
+              onClick={() => setConfirmingDelete(true)}
+              variant="ghost-destructive"
+              className="text-xs sm:text-sm"
+            >
+              Delete
+            </Button>
+          )}
         </div>
       </div>
 
@@ -255,6 +286,8 @@ function HabitItem({
           />
         ))}
       </div>
+
+      {showHistory && <HabitHistory habit={habit} />}
 
       {isLogging && (
         <TimeForm
