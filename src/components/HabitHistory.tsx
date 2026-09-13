@@ -1,4 +1,5 @@
-import { eachDayOfInterval, endOfWeek, format, isFuture, startOfWeek, subWeeks } from "date-fns";
+import { useRef, useState } from "react";
+import { eachDayOfInterval, endOfWeek, format, isFuture, isToday, startOfWeek, subWeeks } from "date-fns";
 import {
   formatMinutes,
   getBestStreak,
@@ -9,6 +10,7 @@ import {
   getFirstTrackedDate,
   getMinutesOn,
   getTotalMinutes,
+  hasMetGoal,
   isCompletedOn,
   type Habit,
 } from "../lib/habits";
@@ -19,14 +21,45 @@ type HabitHistoryProps = {
   habit: Habit;
 };
 
+type Hovered = {
+  date: Date;
+  /** Offset within the wrapper, so the tooltip tracks horizontal scrolling. */
+  x: number;
+  y: number;
+};
+
+/** Half the tooltip's minimum width, used to keep it inside the card. */
+const TOOLTIP_MARGIN = 70;
+
 export default function HabitHistory({ habit }: HabitHistoryProps) {
   const weeks = buildWeeks(WEEKS);
   const busiest = getBusiestMinutes(habit);
+
+  const wrapper = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState<Hovered | null>(null);
 
   const bestStreak = getBestStreak(habit.completions);
   const rate = getCompletionRate(habit);
   const totalMinutes = getTotalMinutes(habit);
   const firstTracked = getFirstTrackedDate(habit);
+
+  function showTooltip(date: Date, cell: HTMLElement) {
+    const bounds = wrapper.current?.getBoundingClientRect();
+    if (!bounds) return;
+
+    const rect = cell.getBoundingClientRect();
+
+    // Both rects are viewport-relative, so subtracting handles scroll for us.
+    const x = rect.left - bounds.left + rect.width / 2;
+
+    setHovered({
+      date,
+      // Clamp here rather than at render time: the measurement belongs with the
+      // event, and reading layout during render is not allowed.
+      x: Math.min(Math.max(x, TOOLTIP_MARGIN), Math.max(bounds.width - TOOLTIP_MARGIN, TOOLTIP_MARGIN)),
+      y: rect.top - bounds.top,
+    });
+  }
 
   return (
     <div className="flex flex-col gap-3 border-t border-zinc-700/50 pt-3">
@@ -43,23 +76,30 @@ export default function HabitHistory({ habit }: HabitHistoryProps) {
         />
       </div>
 
-      {/* Horizontal scroll keeps the grid intact on a phone rather than
-          squashing cells until they stop being readable. */}
-      <div className="overflow-x-auto -mx-1 px-1">
-        <div className="flex gap-[3px] w-max">
-          {weeks.map((week) => (
-            <div key={week[0].toISOString()} className="flex flex-col gap-[3px]">
-              {week.map((date) => (
-                <Cell
-                  key={date.toISOString()}
-                  habit={habit}
-                  date={date}
-                  busiest={busiest}
-                />
-              ))}
-            </div>
-          ))}
+      {/* The tooltip lives outside the scroll container: `overflow-x` forces the
+          vertical axis to scroll too, which would otherwise clip it. */}
+      <div ref={wrapper} className="relative" onPointerLeave={() => setHovered(null)}>
+        <div className="overflow-x-auto -mx-1 px-1 pt-1">
+          <div className="flex gap-[3px] w-max">
+            {weeks.map((week) => (
+              <div key={week[0].toISOString()} className="flex flex-col gap-[3px]">
+                {week.map((date) => (
+                  <Cell
+                    key={date.toISOString()}
+                    habit={habit}
+                    date={date}
+                    busiest={busiest}
+                    onShow={showTooltip}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
+
+        {hovered && (
+          <Tooltip habit={habit} hovered={hovered} />
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-2 text-[10px] text-zinc-500">
@@ -84,6 +124,44 @@ export default function HabitHistory({ habit }: HabitHistoryProps) {
   );
 }
 
+type TooltipProps = {
+  habit: Habit;
+  hovered: Hovered;
+};
+
+function Tooltip({ habit, hovered }: TooltipProps) {
+  const { date, x, y } = hovered;
+
+  const minutes = getMinutesOn(habit, date);
+  const done = isCompletedOn(habit, date);
+
+  const detail = minutes > 0
+    ? `${formatMinutes(minutes)}${habit.goalMinutes ? ` of ${formatMinutes(habit.goalMinutes)}` : ""}${done ? "" : " · not ticked"}`
+    : done
+      ? "Done — no time logged"
+      : "Nothing logged";
+
+  return (
+    <div
+      role="tooltip"
+      className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border border-zinc-600 bg-zinc-900 px-2.5 py-1.5 shadow-lg shadow-black/40"
+      style={{ left: x, top: y - 8 }}
+    >
+      <div className="text-xs font-medium text-zinc-100">
+        {format(date, "EEE, MMM d yyyy")}
+        {isToday(date) && <span className="text-violet-300"> · today</span>}
+      </div>
+      <div
+        className={`text-[11px] ${
+          hasMetGoal(habit, date) ? "text-emerald-300" : "text-zinc-400"
+        }`}
+      >
+        {detail}
+      </div>
+    </div>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col">
@@ -97,9 +175,10 @@ type CellProps = {
   habit: Habit;
   date: Date;
   busiest: number;
+  onShow: (date: Date, cell: HTMLElement) => void;
 };
 
-function Cell({ habit, date, busiest }: CellProps) {
+function Cell({ habit, date, busiest, onShow }: CellProps) {
   if (isFuture(date)) {
     return <span className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-sm opacity-0" />;
   }
@@ -108,13 +187,20 @@ function Cell({ habit, date, busiest }: CellProps) {
   const minutes = getMinutesOn(habit, date);
   const done = isCompletedOn(habit, date);
 
-  const detail = minutes > 0 ? ` — ${formatMinutes(minutes)}` : done ? " — done" : "";
+  const label = `${format(date, "EEEE, MMMM d yyyy")} — ${
+    minutes > 0 ? `${formatMinutes(minutes)} logged` : done ? "done" : "nothing logged"
+  }`;
 
   return (
     <span
-      className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-sm"
+      // Pointer events cover mouse and touch, so a tap shows the date too.
+      onPointerEnter={(e) => onShow(date, e.currentTarget)}
+      onPointerDown={(e) => onShow(date, e.currentTarget)}
+      className={`h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-sm cursor-pointer transition-shadow hover:ring-1 hover:ring-violet-300 ${
+        isToday(date) ? "ring-1 ring-violet-400" : ""
+      }`}
       style={{ backgroundColor: intensityColor(intensity) }}
-      title={`${format(date, "EEE, MMM d yyyy")}${detail}`}
+      aria-label={label}
     />
   );
 }
