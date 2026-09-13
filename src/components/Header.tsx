@@ -19,7 +19,7 @@
 
 import Button from "./Button";
 import { format, startOfWeek, endOfWeek } from "date-fns";
-import { type Habit } from "./HabitList";
+import { isCompletedOn, type Habit } from "../lib/habits";
 import { isSameDay } from "date-fns";
 
 type HeaderProps = {
@@ -40,7 +40,7 @@ export default function Header({
   // Calculate completed habits for today
   const today = new Date();
   const completedToday = habits.filter((habit) =>
-    habit.completions.some((completion) => isSameDay(completion, today))
+    isCompletedOn(habit, today)
   ).length;
   
   const totalHabits = habits.length;
@@ -49,8 +49,11 @@ export default function Header({
   return (
     <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
       <div className="flex flex-col gap-0.5 sm:gap-1">
-        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">
-          Habit Tracker
+        <h1 className="flex items-center gap-2 text-2xl sm:text-3xl font-bold">
+          <img src="/favicon.svg" alt="" aria-hidden="true" className="h-7 w-7 sm:h-8 sm:w-8" />
+          <span className="bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">
+            Ember
+          </span>
         </h1>
         <span className="text-zinc-400 text-xs sm:text-sm">
           {completedToday}/{totalHabits} done today
