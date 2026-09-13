@@ -1,4 +1,4 @@
-import { format, parseISO, subDays } from "date-fns";
+import { differenceInCalendarDays, format, parseISO, subDays } from "date-fns";
 
 /**
  * A single day's entry. `done` and `minutes` are independent: a habit can be
@@ -91,6 +91,90 @@ export function getStreak(completions: Completion[]) {
   }
 
   return streak;
+}
+
+/**
+ * Longest run of consecutive completed days ever recorded.
+ *
+ * `getStreak` only counts backwards from today, so a 40-day run that ended
+ * yesterday reads as zero — this keeps that work visible.
+ */
+export function getBestStreak(completions: Completion[]) {
+  const days = completions
+    .filter((c) => c.done)
+    .map((c) => fromDateKey(c.date).getTime())
+    .sort((a, b) => a - b);
+
+  let best = 0;
+  let run = 0;
+  let previous: number | null = null;
+
+  for (const day of days) {
+    run = previous !== null && isNextCalendarDay(previous, day) ? run + 1 : 1;
+    previous = day;
+    best = Math.max(best, run);
+  }
+
+  return best;
+}
+
+function isNextCalendarDay(previous: number, current: number) {
+  const next = new Date(previous);
+  next.setDate(next.getDate() + 1);
+
+  return toDateKey(next) === toDateKey(new Date(current));
+}
+
+export function getTotalMinutes(habit: Habit) {
+  return habit.completions.reduce((total, c) => total + (c.minutes ?? 0), 0);
+}
+
+export function getDoneCount(habit: Habit) {
+  return habit.completions.filter((c) => c.done).length;
+}
+
+/** The earliest day this habit has any record for, or null when it is new. */
+export function getFirstTrackedDate(habit: Habit) {
+  const first = habit.completions
+    .map((c) => c.date)
+    .sort((a, b) => a.localeCompare(b))
+    .at(0);
+
+  return first ? fromDateKey(first) : null;
+}
+
+/**
+ * Share of days completed since tracking began. Measured from the first
+ * recorded day rather than from the habit's creation, which is not stored.
+ */
+export function getCompletionRate(habit: Habit, today = new Date()) {
+  const first = getFirstTrackedDate(habit);
+  if (!first) return null;
+
+  const days = differenceInCalendarDays(today, first) + 1;
+  if (days <= 0) return null;
+
+  return Math.min(1, getDoneCount(habit) / days);
+}
+
+/**
+ * Relative intensity of a day, 0..1, for the history heatmap. Uses the goal as
+ * the ceiling when there is one, otherwise the habit's own busiest day, so the
+ * scale always means something.
+ */
+export function getDayIntensity(habit: Habit, date: Date, busiestMinutes: number) {
+  const completion = getCompletion(habit, date);
+  if (!completion) return 0;
+
+  const minutes = completion.minutes ?? 0;
+  if (minutes === 0) return completion.done ? 0.25 : 0;
+
+  const ceiling = habit.goalMinutes || busiestMinutes || minutes;
+  return Math.max(0.25, Math.min(1, minutes / ceiling));
+}
+
+export function getBusiestMinutes(habit: Habit) {
+  return habit.completions.reduce((most, c) => Math.max(most, c.minutes ?? 0), 0);
 }
 
 export function formatMinutes(minutes: number) {
